@@ -18,7 +18,7 @@ app.get("/api", async (req, res) => {
     await page.waitForSelector('.h4HgbO_Uu1JYg5UGANeQ'); 
 
     const trackListData = await page.$$eval('.h4HgbO_Uu1JYg5UGANeQ', (elements) =>
-    elements.map((element) => {
+    elements.map((element) => { 
       const name = element?.querySelector('.t_yrXoUO3qGsJS4Y6iXX')?.textContent?.trim() ?? 'N/A';
       const image = element.querySelector('img')?.getAttribute('src') || 'N/A';
       const duration = element.querySelector('.Btg2qHSuepFGBG6X0yEN')?.textContent?.trim() ?? 'N/A';

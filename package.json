@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start":"nodemon start"
   },
-  "keywords": [],
+  "keywords": [], 
   "author": "",
   "license": "ISC",
   "engines": {
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "express": "^4.18.1",
+    "nodemon": "^3.0.1",
     "puppeteer-core": "^6"
   },
   "devDependencies": {
