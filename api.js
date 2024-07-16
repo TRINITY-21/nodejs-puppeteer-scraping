@@ -44,11 +44,11 @@ app.get("/api", async (req, res) => {
         const trackPlaysElement = row.querySelector('[aria-colindex="3"] .encore-text');
         const trackDurationElement = row.querySelector('[aria-colindex="4"] .encore-text');
 
-        if (trackNumberElement && trackNameElement && trackPlaysElement && trackDurationElement && trackImageElement) {
+        if (trackNameElement) {
           const name = trackNameElement.innerText;
-          const image = trackImageElement.src;
-          const stream_count = trackPlaysElement.innerText;
-          const duration = trackDurationElement.innerText;
+          const image = trackImageElement ? trackImageElement.src : null;
+          const stream_count = trackPlaysElement ? trackPlaysElement.innerText : "N/A";
+          const duration = trackDurationElement ? trackDurationElement.innerText : "N/A";
 
           tracks.push({
             image,
