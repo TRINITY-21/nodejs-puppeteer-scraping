@@ -24,7 +24,7 @@ app.get("/api", async (req, res) => {
       await page.waitForTimeout(5000);
     }
 
-    const trackList = await page.evaluate(() => {
+    const trackListData = await page.evaluate(() => {
       const trackListElement = document.querySelector('[data-testid="track-list"]');
 
       if (!trackListElement) {
@@ -45,18 +45,16 @@ app.get("/api", async (req, res) => {
         const trackDurationElement = row.querySelector('[aria-colindex="4"] .encore-text');
 
         if (trackNumberElement && trackNameElement && trackPlaysElement && trackDurationElement && trackImageElement) {
-          const trackNumber = trackNumberElement.innerText;
-          const trackName = trackNameElement.innerText;
-          const trackImage = trackImageElement.src;
-          const trackPlays = trackPlaysElement.innerText;
-          const trackDuration = trackDurationElement.innerText;
+          const name = trackNameElement.innerText;
+          const image = trackImageElement.src;
+          const stream_count = trackPlaysElement.innerText;
+          const duration = trackDurationElement.innerText;
 
           tracks.push({
-            trackNumber,
-            trackName,
-            trackImage,
-            trackPlays,
-            trackDuration,
+            image,
+            name,
+            stream_count,
+            duration,
           });
         }
       });
@@ -64,14 +62,18 @@ app.get("/api", async (req, res) => {
       return tracks;
     });
 
+    const monthlyListeners = await page.$eval('.Ydwa1P5GkCggtLlSvphs', (element) => {
+      return element.textContent.trim();  
+    });
+
     // Print the extracted information
     console.log(artistId, 'artist id');
-    console.log(trackList);
+    console.log(trackListData);
 
     // Close the browser
     await browser.close();
 
-    res.status(200).json({ message: "Success", trackList });
+    res.status(200).json({ message: "Success", trackListData, monthlyListeners });
   } catch (error) {
     console.error("Error in Puppeteer:", error);
     res.status(500).json({ error: error.message });

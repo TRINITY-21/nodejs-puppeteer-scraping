@@ -49,7 +49,7 @@ app.get("/api", async (req, res) => {
     );
 
     const monthlyListeners = await page.$eval('.Ydwa1P5GkCggtLlSvphs', (element) => {
-      return element.textContent.trim();
+      return element.textContent.trim();  
     });
 
     await browser.close();
@@ -62,7 +62,7 @@ app.get("/api", async (req, res) => {
 });
 // http://104.196.44.93/api/?artistId=01DTVE3KmoPogPZaOvMqO8
 // sudo lsof -i 104.196.44.93:80
-app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT || 2000, () => {
   console.log("Server started");
 });
 
