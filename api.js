@@ -13,13 +13,22 @@ app.get("/api", async (req, res) => {
     // Use the artistId in the URL
     await page.goto(`https://open.spotify.com/artist/${artistId}`, { waitUntil: 'domcontentloaded' });
 
-    // Wait for the grid container to be present
-    await page.waitForSelector('[data-testid="grid-container"]', { timeout: 60000 });
+    // Wait for the tracklist to be present
+    await page.waitForSelector('[data-testid="track-list"]', { timeout: 60000 });
 
-    const trackList = await page.evaluate((artistId) => {
-      const trackListElement = document.querySelector('[data-testid="grid-container"] [aria-label="popular tracks"]');
+    // Check if the "See more" button is present and click it
+    const seeMoreButton = await page.$('button[aria-expanded="false"]');
+    if (seeMoreButton) {
+      await seeMoreButton.click();
+      // Wait for a reasonable time for the additional tracks to load
+      await page.waitForTimeout(5000);
+    }
+
+    const trackList = await page.evaluate(() => {
+      const trackListElement = document.querySelector('[data-testid="track-list"]');
+
       if (!trackListElement) {
-        throw new Error("Popular tracks element not found");
+        throw new Error("Track list element not found");
       }
 
       const trackRows = trackListElement.querySelectorAll('[data-testid="tracklist-row"]');
@@ -28,11 +37,11 @@ app.get("/api", async (req, res) => {
       }
 
       const tracks = [];
-      trackRows.forEach((row, index) => {
+      trackRows.forEach((row) => {
         const trackNumberElement = row.querySelector('[aria-colindex="1"] span');
-        const trackNameElement = row.querySelector('[aria-colindex="2"] [data-testid="internal-track-link"] .Text__TextElement-sc-if376j-0');
-        const trackPlaysElement = row.querySelector('[aria-colindex="3"] .Text__TextElement-sc-if376j-0');
-        const trackDurationElement = row.querySelector('[aria-colindex="4"] .Text__TextElement-sc-if376j-0');
+        const trackNameElement = row.querySelector('[aria-colindex="2"] [data-testid="internal-track-link"] .encore-text');
+        const trackPlaysElement = row.querySelector('[aria-colindex="3"] .encore-text');
+        const trackDurationElement = row.querySelector('[aria-colindex="4"] .encore-text');
 
         if (trackNumberElement && trackNameElement && trackPlaysElement && trackDurationElement) {
           const trackNumber = trackNumberElement.innerText;
@@ -50,7 +59,7 @@ app.get("/api", async (req, res) => {
       });
 
       return tracks;
-    }, artistId);
+    });
 
     // Print the extracted information
     console.log(artistId, 'artist id');
