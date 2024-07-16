@@ -60,8 +60,8 @@ app.get("/api", async (req, res) => {
     res.status(500).json({ error });
   }
 });
-http://104.196.44.93/api/?artistId=01DTVE3KmoPogPZaOvMqO8
-sudo lsof -i 104.196.44.93:80
+// http://104.196.44.93/api/?artistId=01DTVE3KmoPogPZaOvMqO8
+// sudo lsof -i 104.196.44.93:80
 app.listen(process.env.PORT || 3000, () => {
   console.log("Server started");
 });

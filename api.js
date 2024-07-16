@@ -40,18 +40,21 @@ app.get("/api", async (req, res) => {
       trackRows.forEach((row) => {
         const trackNumberElement = row.querySelector('[aria-colindex="1"] span');
         const trackNameElement = row.querySelector('[aria-colindex="2"] [data-testid="internal-track-link"] .encore-text');
+        const trackImageElement = row.querySelector('[aria-colindex="2"] img');
         const trackPlaysElement = row.querySelector('[aria-colindex="3"] .encore-text');
         const trackDurationElement = row.querySelector('[aria-colindex="4"] .encore-text');
 
-        if (trackNumberElement && trackNameElement && trackPlaysElement && trackDurationElement) {
+        if (trackNumberElement && trackNameElement && trackPlaysElement && trackDurationElement && trackImageElement) {
           const trackNumber = trackNumberElement.innerText;
           const trackName = trackNameElement.innerText;
+          const trackImage = trackImageElement.src;
           const trackPlays = trackPlaysElement.innerText;
           const trackDuration = trackDurationElement.innerText;
 
           tracks.push({
             trackNumber,
             trackName,
+            trackImage,
             trackPlays,
             trackDuration,
           });
