@@ -15,7 +15,7 @@ const cleanStreamCount = (streamCount) => {
 };
 
 // Helper function to validate Spotify artist ID
-const isValidSpotifyId = (id) => {
+const isValidSpotifyId = (id) => { 
   return typeof id === "string" && id.length === 22;
 };
 
