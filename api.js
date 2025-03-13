@@ -509,9 +509,14 @@ app.get("/api", async (req, res) => {
       console.warn("Screenshot failed:", err.message);
     }
 
+    // trackListData =       {
+    //   image: trackImageElement ? trackImageElement.src : null,
+    //   name: artistName ? trackNameElement.innerText : "Unknown",
+    //   stream_count: trackPlaysElement ? trackPlaysElement.innerText : "0",
+    //   duration: trackDurationElement ? trackDurationElement.innerText : "0",
+    // };
     // Close browser
     await browser.close();
-
     // Send response
     res.status(200).json({
       success: true,
@@ -520,15 +525,18 @@ app.get("/api", async (req, res) => {
         name: artistName,
         monthlyListeners
       },
-      tracks: processedTracks,
+      trackListData: processedTracks,
       stats: {
         totalTracks: processedTracks.length,
         totalStreams
       },
+      monthlyListeners,
       debug: {
         timestamp: new Date().toISOString(),
         screenCaptured: !!screenshot
       }
+
+
     });
 
   } catch (error) {
@@ -552,7 +560,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Spotify Scraper API running on port ${PORT}`);
