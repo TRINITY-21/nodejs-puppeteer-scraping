@@ -134,86 +134,102 @@ app.get("/api", async (req, res) => {
     });
     console.log(`Initial track count: ${initialTrackCount}`);
     
-    // Attempt to load more tracks only if we have less than 10
-    if (initialTrackCount < 10) {
-      console.log("Track count is less than 10, attempting to load more tracks");
-      
-      // Define the "See more" button selectors
-      const seeMoreSelectors = [
-        'button.wi2HeHXOI471ZOh8ncCG[aria-expanded="false"]', 
-        'button[aria-expanded="false"] div.e-9640-text',
-        'button[aria-expanded="false"]'
-      ];
-      
-      // Try multiple methods to click the button until we get 10 tracks
-      let attemptCount = 0;
-      const maxAttempts = 3;
-      let tracksLoaded = initialTrackCount;
-      
-      while (tracksLoaded < 10 && attemptCount < maxAttempts) {
-        attemptCount++;
-        console.log(`Attempt ${attemptCount} to click "See more" button`);
-        
-        // Try each selector
-        for (const selector of seeMoreSelectors) {
-          try {
-            const buttonExists = await page.evaluate((sel) => {
-              const button = document.querySelector(sel);
-              return !!button;
-            }, selector);
-            
-            if (buttonExists) {
-              console.log(`Found button with selector: ${selector}`);
-              
-              // Click the button
-              await page.click(selector).catch(e => {
-                console.warn(`Failed to click with page.click(): ${e.message}`);
-                return false;
-              });
-              
-              // Also try JavaScript click as a backup
-              await page.evaluate((sel) => {
-                const button = document.querySelector(sel);
-                if (button) {
-                  button.click();
-                  console.log("Clicked via JavaScript");
-                  return true;
-                }
-                return false;
-              }, selector);
-              
-              // Wait for content to update
-              await page.waitForTimeout(3000);
-              
-              // Check if tracks increased
-              tracksLoaded = await page.evaluate(() => {
-                return document.querySelectorAll('[data-testid="tracklist-row"]').length;
-              });
-              
-              console.log(`After attempt ${attemptCount}, track count: ${tracksLoaded}`);
-              
-              if (tracksLoaded >= 10) {
-                console.log("Successfully loaded 10 or more tracks!");
-                break;
-              }
-            }
-          } catch (error) {
-            console.error(`Error with selector ${selector}:`, error);
-          }
-        }
-        
-        // If we've tried all selectors but still don't have 10 tracks, wait and try again
-        if (tracksLoaded < 10) {
-          console.log("Waiting before next attempt...");
-          await page.waitForTimeout(2000);
-        }
-      }
-      
-      // Final waiting period to ensure all content is loaded
-      await page.waitForTimeout(2000);
-    } else {
-      console.log("Already have 10 or more tracks, no need to click 'See more'");
-    }
+if (initialTrackCount < 10) {
+      console.log("Track count is less than 10, attempting to load more tracks");
+      
+      // Define the "See more" button selectors
+      const seeMoreSelectors = [
+        'button.wi2HeHXOI471ZOh8ncCG', // Use the provided class directly
+        'button[aria-expanded="false"]', 
+        'button[data-encore-id="button"]', // General button with data-encore-id
+        'div.e-9960-text.encore-text-body-small-bold:contains("See more")', // Target the div containing "See more" text
+        'button:has(div.e-9960-text.encore-text-body-small-bold:contains("See more"))' // Target the button containing the specific div
+      ];
+      
+      // Try multiple methods to click the button until we get 10 tracks
+      let attemptCount = 0;
+      const maxAttempts = 5; // Increased max attempts for robustness
+      let tracksLoaded = initialTrackCount;
+      
+      while (tracksLoaded < 10 && attemptCount < maxAttempts) {
+        attemptCount++;
+        console.log(`Attempt ${attemptCount} to click "See more" button`);
+        
+        let clicked = false;
+        for (const selector of seeMoreSelectors) {
+          try {
+            const button = await page.$(selector);
+            if (button) {
+              console.log(`Found button with selector: ${selector}`);
+              
+              // Attempt to click using Puppeteer's click method
+              await button.click().catch(e => {
+                console.warn(`Failed Puppeteer click for ${selector}: ${e.message}`);
+              });
+              clicked = true;
+              break; // Break after first successful click
+            }
+          } catch (error) {
+            console.error(`Error with selector ${selector} during click attempt:`, error);
+          }
+        }
+
+        // If no button was clicked by Puppeteer's click, try evaluating JavaScript click
+        if (!clicked) {
+          for (const selector of seeMoreSelectors) {
+            try {
+              const jsClicked = await page.evaluate((sel) => {
+                const button = document.querySelector(sel);
+                if (button) {
+                  button.click();
+                  console.log(`Clicked via JavaScript for selector: ${sel}`);
+                  return true;
+                }
+                return false;
+              }, selector);
+              
+              if (jsClicked) {
+                clicked = true;
+                break;
+              }
+            } catch (error) {
+              console.error(`Error with JS click for selector ${selector}:`, error);
+            }
+          }
+        }
+        
+        if (clicked) {
+          // Wait for content to update after click
+          await page.waitForTimeout(3000);
+          
+          // Check if tracks increased
+          tracksLoaded = await page.evaluate(() => {
+            return document.querySelectorAll('[data-testid="tracklist-row"]').length;
+          });
+          
+          console.log(`After attempt ${attemptCount}, track count: ${tracksLoaded}`);
+          
+          if (tracksLoaded >= 10) {
+            console.log("Successfully loaded 10 or more tracks!");
+            break;
+          }
+        } else {
+          console.log("No 'See more' button found or clickable in this attempt.");
+        }
+        
+        // If we've tried all selectors but still don't have 10 tracks or a successful click, wait and try again
+        if (tracksLoaded < 10) {
+          console.log("Waiting before next attempt...");
+          await page.waitForTimeout(2000);
+        }
+      }
+      
+      // Final waiting period to ensure all content is loaded
+      await page.waitForTimeout(2000);
+    } else {
+      console.log("Already have 10 or more tracks, no need to click 'See more'");
+    }
+
 
     // Ensure page is scrolled to show all content
     await autoScroll(page);
