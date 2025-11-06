@@ -133,102 +133,58 @@ app.get("/api", async (req, res) => {
       return trackRows.length;
     });
     console.log(`Initial track count: ${initialTrackCount}`);
-    
-if (initialTrackCount < 10) {
-      console.log("Track count is less than 10, attempting to load more tracks");
-      
-      // Define the "See more" button selectors
-      const seeMoreSelectors = [
-        'button.wi2HeHXOI471ZOh8ncCG', // Use the provided class directly
-        'button[aria-expanded="false"]', 
-        'button[data-encore-id="button"]', // General button with data-encore-id
-        'div.e-9960-text.encore-text-body-small-bold:contains("See more")', // Target the div containing "See more" text
-        'button:has(div.e-9960-text.encore-text-body-small-bold:contains("See more"))' // Target the button containing the specific div
-      ];
-      
-      // Try multiple methods to click the button until we get 10 tracks
-      let attemptCount = 0;
-      const maxAttempts = 5; // Increased max attempts for robustness
-      let tracksLoaded = initialTrackCount;
-      
-      while (tracksLoaded < 10 && attemptCount < maxAttempts) {
-        attemptCount++;
-        console.log(`Attempt ${attemptCount} to click "See more" button`);
-        
-        let clicked = false;
-        for (const selector of seeMoreSelectors) {
-          try {
-            const button = await page.$(selector);
-            if (button) {
-              console.log(`Found button with selector: ${selector}`);
-              
-              // Attempt to click using Puppeteer's click method
-              await button.click().catch(e => {
-                console.warn(`Failed Puppeteer click for ${selector}: ${e.message}`);
-              });
-              clicked = true;
-              break; // Break after first successful click
-            }
-          } catch (error) {
-            console.error(`Error with selector ${selector} during click attempt:`, error);
-          }
-        }
 
-        // If no button was clicked by Puppeteer's click, try evaluating JavaScript click
-        if (!clicked) {
-          for (const selector of seeMoreSelectors) {
-            try {
-              const jsClicked = await page.evaluate((sel) => {
-                const button = document.querySelector(sel);
-                if (button) {
-                  button.click();
-                  console.log(`Clicked via JavaScript for selector: ${sel}`);
-                  return true;
-                }
-                return false;
-              }, selector);
-              
-              if (jsClicked) {
-                clicked = true;
-                break;
-              }
-            } catch (error) {
-              console.error(`Error with JS click for selector ${selector}:`, error);
-            }
-          }
-        }
-        
-        if (clicked) {
-          // Wait for content to update after click
-          await page.waitForTimeout(3000);
-          
-          // Check if tracks increased
-          tracksLoaded = await page.evaluate(() => {
-            return document.querySelectorAll('[data-testid="tracklist-row"]').length;
-          });
-          
-          console.log(`After attempt ${attemptCount}, track count: ${tracksLoaded}`);
-          
-          if (tracksLoaded >= 10) {
-            console.log("Successfully loaded 10 or more tracks!");
-            break;
-          }
-        } else {
-          console.log("No 'See more' button found or clickable in this attempt.");
-        }
-        
-        // If we've tried all selectors but still don't have 10 tracks or a successful click, wait and try again
-        if (tracksLoaded < 10) {
-          console.log("Waiting before next attempt...");
-          await page.waitForTimeout(2000);
-        }
-      }
-      
-      // Final waiting period to ensure all content is loaded
-      await page.waitForTimeout(2000);
-    } else {
-      console.log("Already have 10 or more tracks, no need to click 'See more'");
-    }
+    // Click the "See more" button in the Popular section if fewer than 10 rows
+    if (initialTrackCount < 10) {
+      console.log("Track count is less than 10, attempting to load more tracks via text match");
+
+      const clickSeeMoreByText = async () => {
+        return page.evaluate(() => {
+          const matchesText = (el, text) => (el.textContent || '').trim().toLowerCase().includes(text);
+
+          // Search for buttons or clickable elements that contain "See more"
+          const candidates = Array.from(document.querySelectorAll('button, [role="button"], a'));
+          const btn = candidates.find(el => matchesText(el, 'see more'));
+          if (btn) {
+            btn.scrollIntoView({ block: 'center' });
+            btn.click();
+            return true;
+          }
+
+          // Fallback: find any element in Popular section that says See more
+          const popularSection = Array.from(document.querySelectorAll('section, div')).find(sec => matchesText(sec, 'popular')) || document;
+          const textNodes = popularSection.querySelectorAll('*');
+          for (const el of textNodes) {
+            if (matchesText(el, 'see more')) {
+              const clickable = el.closest('button, [role="button"], a');
+              if (clickable) {
+                clickable.scrollIntoView({ block: 'center' });
+                clickable.click();
+                return true;
+              }
+            }
+          }
+          return false;
+        });
+      };
+
+      let attempts = 0;
+      while (attempts < 4) {
+        attempts += 1;
+        const clicked = await clickSeeMoreByText();
+        console.log(`See more click attempt ${attempts}: ${clicked}`);
+        await page.waitForTimeout(1500);
+
+        const count = await page.evaluate(() => document.querySelectorAll('[data-testid="tracklist-row"]').length);
+        console.log(`Track count after attempt ${attempts}: ${count}`);
+        if (count >= 10) break;
+      }
+
+      // Small extra wait to stabilize
+      await page.waitForTimeout(1000);
+    } else {
+      console.log("Already have 10 or more tracks, no need to click 'See more'");
+    }
 
 
     // Ensure page is scrolled to show all content
@@ -436,77 +392,64 @@ if (initialTrackCount < 10) {
       });
     }
 
-    // Extract monthly listeners
+    // Extract monthly listeners (concise and numeric)
     let monthlyListeners = "N/A";
+    let monthlyListenersNumeric = null;
     try {
-      monthlyListeners = await page.evaluate(() => {
-        // Try multiple selectors for monthly listeners
-        const selectors = [
-          ".Ydwa1P5GkCggtLlSvphs", 
-          "[data-testid='monthly-listeners-label']",
-          ".stats-listeners",
-          "div:contains('monthly listeners')"
-        ];
-        
-        for (const selector of selectors) {
-          const el = document.querySelector(selector);
-          if (el) return el.textContent.trim();
-        }
-        
-        // Last resort: look for text containing "monthly listeners"
-        const elements = document.querySelectorAll('*');
-        for (const el of elements) {
-          if (el.textContent && el.textContent.includes('monthly listeners')) {
-            return el.textContent.trim();
-          }
-        }
-        
-        return "N/A";
+      const parsed = await page.evaluate(() => {
+        const root = document.querySelector('main') || document.body || document;
+        const text = (root.innerText || '').replace(/\s+/g, ' ');
+        // Find the first occurrence like "8,670,718 monthly listeners" or "8.6M monthly listeners"
+        const m = text.match(/(\d[\d,.]*\s*[KMB]?)\s*monthly\s*listeners/i);
+        if (!m) return null;
+        const amountRaw = m[1].trim();
+        return amountRaw;
       });
+      if (parsed) {
+        const normalized = parsed.replace(/,/g, '').toUpperCase();
+        if (/^[\d.]+[KMB]$/.test(normalized)) {
+          const n = parseFloat(normalized);
+          const unit = normalized.slice(-1);
+          const factor = unit === 'K' ? 1e3 : unit === 'M' ? 1e6 : 1e9;
+          monthlyListenersNumeric = Math.round(n * factor);
+        } else if (/^[\d.]+$/.test(normalized)) {
+          monthlyListenersNumeric = Math.round(parseFloat(normalized));
+        }
+        const labelNumber = monthlyListenersNumeric !== null ? monthlyListenersNumeric.toLocaleString('en-US') : parsed;
+        monthlyListeners = `${labelNumber} monthly listeners`;
+      }
     } catch (err) {
-      console.warn("Monthly listeners element not found:", err.message);
+      console.warn("Monthly listeners extraction failed:", err.message);
     }
 
-    // Extract artist name with improved selectors
+    // Extract artist name scoped to main content to avoid sidebar like "Your Library"
     let artistName = "Unknown Artist";
     try {
       artistName = await page.evaluate(() => {
-        // Try multiple selectors for artist name
-        const selectors = [
-          "h1[data-testid='entityTitle']",
-          "h1.encore-text-title-large",
-          "h1.Type__TypeElement-sc-goli3j-0",
-          "h1",
-          ".artist-header h1",
-          ".artist-name",
-          "h1.artist"
-        ];
-        
-        for (const selector of selectors) {
-          const el = document.querySelector(selector);
-          if (el && el.innerText && el.innerText.trim()) {
-            return el.innerText.trim();
-          }
+        const root = document.querySelector('main') || document;
+        // Prefer the page title h1 in the main region
+        const prefer = root.querySelector("h1[data-testid='entityTitle']") || root.querySelector('h1.encore-text-title-large');
+        const getText = (el) => (el && el.textContent ? el.textContent.trim() : '');
+        let title = getText(prefer);
+        if (title && !/your\s+library/i.test(title)) return title;
+
+        // Fallback: first h1 in main that is not generic
+        const h1s = Array.from(root.querySelectorAll('h1'));
+        for (const h of h1s) {
+          const t = getText(h);
+          if (t && !/your\s+library/i.test(t) && t.length > 1) return t;
         }
-        
-        // If still not found, try looking for the largest heading on the page
-        const h1s = document.querySelectorAll('h1');
-        if (h1s.length > 0) {
-          // Sort by text length and take the longest as it's likely the artist name
-          const sortedH1s = Array.from(h1s).sort((a, b) => 
-            (b.innerText?.length || 0) - (a.innerText?.length || 0)
-          );
-          return sortedH1s[0]?.innerText?.trim() || "Unknown Artist";
-        }
-        
-        return "Unknown Artist";
+        return 'Unknown Artist';
       });
     } catch (err) {
-      console.warn("Artist name element not found:", err.message);
+      console.warn("Artist name extraction failed:", err.message);
     }
 
     // Clean up and process data
-    const processedTracks = trackListData.map(track => ({
+    // Keep only the first 10 popular tracks
+    const topTracks = (trackListData || []).slice(0, 10);
+
+    const processedTracks = topTracks.map(track => ({
       ...track,
       stream_count_numeric: cleanStreamCount(track.stream_count)
     }));
@@ -539,7 +482,8 @@ if (initialTrackCount < 10) {
       artist: {
         id: artistId,
         name: artistName,
-        monthlyListeners
+        monthlyListeners,
+        monthlyListenersNumeric
       },
       trackListData: processedTracks,
       stats: {
@@ -572,7 +516,7 @@ if (initialTrackCount < 10) {
 });
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
 
